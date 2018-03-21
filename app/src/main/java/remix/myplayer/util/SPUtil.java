@@ -115,6 +115,8 @@ public class SPUtil {
         public static final String LAST_SONG_ID = "last_song_id";
         //下一首歌曲id
         public static final String NEXT_SONG_ID = "next_song_id";
+        //播放模式
+        public static final String PLAY_MODEL = "play_model";
     }
 
 }

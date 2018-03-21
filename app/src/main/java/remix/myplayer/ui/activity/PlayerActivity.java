@@ -631,7 +631,10 @@ public class PlayerActivity extends BaseActivity implements UpdateHelper.Callbac
 //                if(!mIsPlay){
 //                    seekBar.setProgress(0);
 //                }
-                MusicService.setProgress(seekBar.getProgress());
+                sendBroadcast(new Intent(MusicService.ACTION_CMD)
+                        .putExtra("Control",Constants.SEEK_TO)
+                        .putExtra("progress",seekBar.getProgress()));
+//                MusicService.setProgress(seekBar.getProgress());
                 mIsDragSeekBarFromUser = false;
             }
         });
@@ -829,8 +832,11 @@ public class PlayerActivity extends BaseActivity implements UpdateHelper.Callbac
                 }
             });
             mLrcView.setOnSeekToListener(progress -> {
-                if (progress > 0 && progress < MusicService.getDuration()) {
-                    MusicService.setProgress(progress);
+                if (progress > 0 && progress < mInfo.getDuration()) {
+//                    MusicService.setProgress(progress);
+                    sendBroadcast(new Intent(MusicService.ACTION_CMD)
+                            .putExtra("Control",Constants.SEEK_TO)
+                            .putExtra("progress",progress));
                     mCurrentTime = progress;
                     mHandler.sendEmptyMessage(UPDATE_TIME_ALL);
                 }
@@ -973,7 +979,7 @@ public class PlayerActivity extends BaseActivity implements UpdateHelper.Callbac
         Theme.TintDrawable(mTopHide,R.drawable.icon_player_back,tintColor);
         Theme.TintDrawable(mTopMore,R.drawable.icon_player_more,tintColor);
         //播放模式与播放队列
-        int playmode = SPUtil.getValue(this,SPUtil.SETTING_KEY.SETTING_NAME, "PlayModel",Constants.PLAY_LOOP);
+        int playmode = SPUtil.getValue(this,SPUtil.SETTING_KEY.SETTING_NAME, SPUtil.SETTING_KEY.PLAY_MODEL,Constants.PLAY_LOOP);
         Theme.TintDrawable(mPlayModel,playmode == Constants.PLAY_LOOP ? R.drawable.play_btn_loop :
                 playmode == Constants.PLAY_SHUFFLE ? R.drawable.play_btn_shuffle :
                         R.drawable.play_btn_loop_one,tintColor);

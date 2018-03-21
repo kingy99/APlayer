@@ -27,6 +27,8 @@ public class Song implements Cloneable, Parcelable {
     public String Year = "";
     public String TitleKey;
     public long AddTime;
+    public long Progress;
+
     public Song(){}
 
     public Song(int id, String displayname, String title, String album,
@@ -207,6 +209,13 @@ public class Song implements Cloneable, Parcelable {
         Size = size;
     }
 
+    public long getProgress() {
+        return Progress;
+    }
+
+    public void setProgress(long progress) {
+        Progress = progress;
+    }
 
     @Override
     public int describeContents() {

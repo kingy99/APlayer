@@ -102,24 +102,24 @@ public class MusicService extends BaseService implements Playback,MusicEventHelp
     private boolean mLoadFinished = false;
 
     /** 播放模式 */
-    private static int mPlayModel = Constants.PLAY_LOOP;
+    private int mPlayModel = Constants.PLAY_LOOP;
 
     /** 当前是否正在播放 */
-    private static Boolean mIsplay = false;
+    private Boolean mIsplay = false;
 
     /** 当前播放的索引 */
-    private static int mCurrentIndex = 0;
+    private int mCurrentIndex = 0;
     /** 当前正在播放的歌曲id */
-    private static int mCurrentId = -1;
+    private int mCurrentId = -1;
     /** 当前正在播放的mp3 */
-    private static Song mCurrentSong = null;
+    private Song mCurrentSong = null;
 
     /** 下一首歌曲的索引 */
-    private static int mNextIndex = 0;
+    private int mNextIndex = 0;
     /** 下一首播放歌曲的id */
-    private static int mNextId = -1;
+    private int mNextId = -1;
     /** 下一首播放的mp3 */
-    private static Song mNextSong = null;
+    private Song mNextSong = null;
 
     /** MediaPlayer 负责歌曲的播放等 */
     private IjkMediaPlayer mMediaPlayer;
@@ -204,9 +204,8 @@ public class MusicService extends BaseService implements Playback,MusicEventHelp
     public static final String ACTION_SHORTCUT_LASTADDED = APLAYER_PACKAGE_NAME + "shortcut.last_added";
     public static final String ACTION_SHORTCUT_CONTINUE_PLAY = APLAYER_PACKAGE_NAME + "shortcut.continue_play";
     public static final String ACTION_LOAD_FINISH = APLAYER_PACKAGE_NAME + "load.finish";
-    public final static String ACTION_CMD = APLAYER_PACKAGE_NAME + ".cmd";
-    public final static String ACTION_WIDGET_UPDATE = APLAYER_PACKAGE_NAME + ".widget_update";
-
+    public static final String ACTION_CMD = APLAYER_PACKAGE_NAME + ".cmd";
+    public static final String ACTION_WIDGET_UPDATE = APLAYER_PACKAGE_NAME + ".widget_update";
 
     public synchronized static MusicService getInstance(){
         return mInstance;
@@ -373,13 +372,17 @@ public class MusicService extends BaseService implements Playback,MusicEventHelp
         });
 
         mMediaPlayer.setOnPreparedListener(mp -> {
-            if(mFirstPrepared){
-                mFirstPrepared = false;
-                pause(false);
-            }else {
-                play(false);
+//            if(mFirstPrepared){
+//                mFirstPrepared = false;
+//                pause(false);
+//            }else {
+//                play(false);
+//            }
+            if(mCurrentSong.getProgress() > 0){
+                setProgress(mCurrentSong.getProgress());
+                mCurrentSong.setProgress(0);
             }
-//            play(false);
+            play(false);
         });
 
         mMediaPlayer.setOnErrorListener((mp, what, extra) -> {
@@ -409,7 +412,7 @@ public class MusicService extends BaseService implements Playback,MusicEventHelp
             if(mMediaPlayer == null) {
                 setUpMediaPlayer();
             }
-            prepare(mCurrentSong.getUrl(),false);
+//            prepare(mCurrentSong.getUrl(),false);
         } catch (Exception e) {
             mUpdateUIHandler.post(() -> ToastUtil.show(mContext,e.toString()));
         }
@@ -544,7 +547,11 @@ public class MusicService extends BaseService implements Playback,MusicEventHelp
         if(mMediaPlayer.isPlaying()) {
             pause(false);
         } else {
-            play(true);
+            if(mIsInitialized){
+                play(true);
+            } else {
+                prepare(mCurrentSong.getUrl());
+            }
         }
     }
 
@@ -878,6 +885,17 @@ public class MusicService extends BaseService implements Playback,MusicEventHelp
                     }
                     ToastUtil.show(mContext,R.string.already_add_to_next_song);
                     break;
+                //进度
+                case Constants.SEEK_TO:
+                    int progress = intent.getIntExtra("progress",-1);
+                    if(progress < 0)
+                        return;
+                    if(mIsplay || mIsInitialized){
+                        setProgress(progress);
+                    } else {
+                        mCurrentSong.setProgress(progress);
+                    }
+                    break;
                 default:break;
             }
         }
@@ -993,8 +1011,6 @@ public class MusicService extends BaseService implements Playback,MusicEventHelp
             }
             mIsInitialized = false;
             mMediaPlayer.reset();
-            if(mFirstPrepared)
-                mVolumeController.to(0);
             mMediaPlayer.setDataSource(path);
             mMediaPlayer.prepareAsync();
             mIsInitialized = true;
@@ -1078,7 +1094,7 @@ public class MusicService extends BaseService implements Playback,MusicEventHelp
      * @return
      */
     public static IMediaPlayer getMediaPlayer(){
-        return mInstance.mMediaPlayer;
+        return mInstance != null ? mInstance.mMediaPlayer : null;
     }
 
     /**
@@ -1086,7 +1102,7 @@ public class MusicService extends BaseService implements Playback,MusicEventHelp
      * @return
      */
     public static int getPlayModel() {
-        return mPlayModel;
+        return mInstance != null ? mInstance.mPlayModel : Constants.PLAY_LOOP;
     }
 
     /**
@@ -1096,7 +1112,7 @@ public class MusicService extends BaseService implements Playback,MusicEventHelp
     public void setPlayModel(int playModel) {
         mPlayModel = playModel;
         updateAppwidget();
-        SPUtil.putValue(mContext,SPUtil.SETTING_KEY.SETTING_NAME, "PlayModel",mPlayModel);
+        SPUtil.putValue(mContext,SPUtil.SETTING_KEY.SETTING_NAME, SPUtil.SETTING_KEY.PLAY_MODEL,mPlayModel);
         //保存正在播放和下一首歌曲
         SPUtil.putValue(mContext,SPUtil.SETTING_KEY.SETTING_NAME,SPUtil.SETTING_KEY.NEXT_SONG_ID,mNextId);
         SPUtil.putValue(mContext,SPUtil.SETTING_KEY.SETTING_NAME,SPUtil.SETTING_KEY.LAST_SONG_ID,mCurrentId);
@@ -1133,16 +1149,16 @@ public class MusicService extends BaseService implements Playback,MusicEventHelp
      * @return
      */
     public static boolean isPlay() {
-        return mIsplay;
+        return mInstance != null ? mInstance.mIsplay : false;
     }
 
     /**
      * 设置MediaPlayer播放进度
      * @param current
      */
-    public static void setProgress(int current) {
-        if(getMediaPlayer() != null)
-            getMediaPlayer().seekTo(current);
+    public void setProgress(long current) {
+        if(mMediaPlayer != null && mIsInitialized)
+            mMediaPlayer.seekTo(current);
     }
 
     /**
@@ -1150,7 +1166,7 @@ public class MusicService extends BaseService implements Playback,MusicEventHelp
      * @return
      */
     public static Song getCurrentMP3() {
-        return mCurrentSong;
+        return mInstance != null ? mInstance.mCurrentSong : null;
     }
 
     /**
@@ -1158,7 +1174,7 @@ public class MusicService extends BaseService implements Playback,MusicEventHelp
      * @return
      */
     public static Song getNextMP3(){
-        return mNextSong;
+        return mInstance != null ? mInstance.mNextSong : null;
     }
 
     /**
@@ -1173,6 +1189,7 @@ public class MusicService extends BaseService implements Playback,MusicEventHelp
 //                return MusicService.getMediaPlayer().getMediaInfo().mMeta.getString(IjkMediaMeta.IJKM_KEY_SAMPLE_RATE);
                 return "";
             case Constants.MIME:
+                IjkMediaMeta ijkMediaMeta = new IjkMediaMeta();
                 return MusicService.getMediaPlayer().getMediaInfo().mMeta.getString(IjkMediaMeta.IJKM_KEY_FORMAT);
             default:return "";
         }
@@ -1185,7 +1202,9 @@ public class MusicService extends BaseService implements Playback,MusicEventHelp
     public static int getProgress() {
         if(getMediaPlayer() != null && mIsInitialized)
             return (int) getMediaPlayer().getCurrentPosition();
-        return 0;
+        else {
+           return mInstance != null && mInstance.mCurrentSong != null ? (int) mInstance.mCurrentSong.getProgress() : 0;
+        }
     }
 
     public static long getDuration(){
@@ -1193,22 +1212,6 @@ public class MusicService extends BaseService implements Playback,MusicEventHelp
             return getMediaPlayer().getDuration();
         }
         return 0;
-    }
-
-    /**
-     * 获得当前播放索引
-     * @return
-     */
-    public static int getCurrentPos() {
-        return mCurrentIndex;
-    }
-
-    /**
-     * 设置当前索引
-     * @param pos
-     */
-    public static void setCurrentPos(int pos) {
-        mCurrentIndex = pos;
     }
 
     /**
@@ -1243,7 +1246,7 @@ public class MusicService extends BaseService implements Playback,MusicEventHelp
             }
         }else {
             //播放模式
-            mPlayModel = SPUtil.getValue(mContext,SPUtil.SETTING_KEY.SETTING_NAME, "PlayModel",Constants.PLAY_LOOP);
+            mPlayModel = SPUtil.getValue(mContext,SPUtil.SETTING_KEY.SETTING_NAME, SPUtil.SETTING_KEY.PLAY_MODEL,Constants.PLAY_LOOP);
             Global.PlayQueueID = SPUtil.getValue(mContext,SPUtil.SETTING_KEY.SETTING_NAME,"PlayQueueID",-1);
             Global.MyLoveID = SPUtil.getValue(mContext,SPUtil.SETTING_KEY.SETTING_NAME,"MyLoveID",-1);
             Global.PlayQueue = PlayListUtil.getIDList(Global.PlayQueueID);
@@ -1786,7 +1789,7 @@ public class MusicService extends BaseService implements Playback,MusicEventHelp
                 case Constants.UPDATE_UI:
                     musicService.updateAppwidget();
                     musicService.updateFloatLrc();
-                    UpdateHelper.update(mCurrentSong,mIsplay);
+                    UpdateHelper.update(musicService.mCurrentSong,musicService.mIsplay);
                     break;
                 case Constants.UPDATE_FLOAT_LRC_CONTENT:
                     if(musicService.mFloatLrcView != null){
